@@ -12,16 +12,18 @@ import com.ses.zest.encryption.adapters.InMemoryKeyManager;
 import com.ses.zest.security.adapters.BasicRole;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CreateUserTest {
+ class CreateUserTest {
     @Test
     void shouldCreateUserAndPublishEvent() {
-        // Arrange
         var encryption = new AesEncryption();
         var keyManager = new InMemoryKeyManager(encryption);
         var eventStore = new InMemoryEventStore(encryption, keyManager);
         var eventBus = new InMemoryEventBus();
+        eventBus.subscribe(eventStore); // Subscribe store to bus
         var users = new InMemoryUsers();
         var userEvents = new InMemoryUserEvents(eventBus);
 
@@ -32,13 +34,13 @@ public class CreateUserTest {
         var email = new Email("test@example.com");
         var role = BasicRole.TENANT_ADMIN;
 
-        // Act
+        eventStore.setCurrentTenantId(tenantId); // Temporary hack
         createUser.execute(userId, tenantId, accountId, email, role);
 
-        // Assert
         User user = users.find(userId, tenantId);
         assertNotNull(user, "User should be saved");
-        assertEquals(email, ((UserCreated)user.uncommittedEvents().get(0)).email(), "Event should contain email");
-        assertEquals(1, user.uncommittedEvents().size(), "One event should be published");
+        List<Event> storedEvents = eventStore.getEvents(userId, tenantId, accountId);
+        assertEquals(1, storedEvents.size(), "One event should be stored");
+        assertEquals(email, ((UserCreated) storedEvents.get(0)).email(), "Event should contain email");
     }
 }
