@@ -29,11 +29,12 @@ public final class FileBasedEventStore implements EventStore, EventSubscriber {
         byte[] serializedEvent = serialize(event);
         byte[] encryptedData = encryption.encrypt(serializedEvent, keyManager.getDataKey(event.userId()));
         StoredEvent storedEvent = new StoredEvent(tenantId, encryptedData);
-        Path filePath = getFilePath(event.entityId(), tenantId);
+        Path dirPath = getDirPath(event.entityId(), tenantId);
+        String fileName = event.timestamp().toEpochMilli() + "-" + UUID.randomUUID() + ".event";
+        Path filePath = dirPath.resolve(fileName);
         try {
-            Files.createDirectories(filePath.getParent());
-            try (ObjectOutputStream oos = new ObjectOutputStream(
-                    Files.newOutputStream(filePath, StandardOpenOption.CREATE, StandardOpenOption.APPEND))) {
+            Files.createDirectories(dirPath);
+            try (ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(filePath))) {
                 oos.writeObject(storedEvent);
             }
         } catch (IOException e) {
@@ -43,17 +44,15 @@ public final class FileBasedEventStore implements EventStore, EventSubscriber {
 
     @Override
     public List<Event> getEvents(EntityId<?> entityId, TenantId tenantId, AccountId accountId) {
-        Path filePath = getFilePath(entityId, tenantId);
-        if (!Files.exists(filePath)) return List.of();
+        Path dirPath = getDirPath(entityId, tenantId);
+        if (!Files.exists(dirPath)) return List.of();
         List<Event> events = new ArrayList<>();
-        try (ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(filePath))) {
-            while (true) {
-                try {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dirPath, "*.event")) {
+            for (Path filePath : stream) {
+                try (ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(filePath))) {
                     StoredEvent stored = (StoredEvent) ois.readObject();
                     byte[] decryptedData = encryption.decrypt(stored.encryptedData(), keyManager.getDataKey(accountId));
                     events.add(deserialize(decryptedData));
-                } catch (EOFException e) {
-                    break; // End of file
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
@@ -67,9 +66,8 @@ public final class FileBasedEventStore implements EventStore, EventSubscriber {
         append(event, event.tenantId());
     }
 
-    private Path getFilePath(EntityId<?> entityId, TenantId tenantId) {
-        return storageDir.resolve(tenantId.value().toString())
-                .resolve(entityId.value().toString() + ".events");
+    private Path getDirPath(EntityId<?> entityId, TenantId tenantId) {
+        return storageDir.resolve(tenantId.value().toString()).resolve(entityId.value().toString());
     }
 
     private byte[] serialize(Event event) {

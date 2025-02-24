@@ -1,7 +1,7 @@
 package com.ses.zest.user;
 
 import com.ses.zest.event.ports.EventStore;
-import com.ses.zest.user.application.CreateUser;
+import com.ses.zest.user.application.*;
 import com.ses.zest.user.domain.*;
 import com.ses.zest.user.adapters.*;
 import com.ses.zest.common.*;
@@ -21,12 +21,11 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CreateUserTest {
+public class UserTest {
     private static final Path TEST_EVENTS_DIR = Paths.get("target/test-events");
 
     @BeforeEach
     void setUp() throws IOException {
-        // Clean up test-events directory before each test
         if (Files.exists(TEST_EVENTS_DIR)) {
             Files.walk(TEST_EVENTS_DIR)
                     .sorted(Comparator.reverseOrder())
@@ -66,7 +65,7 @@ public class CreateUserTest {
         var role = BasicRole.TENANT_ADMIN;
 
         createUser.execute(userId, tenantId, accountId, email, role);
-        eventBus.shutdown(); // Ensure all events are processed
+        eventBus.shutdown();
 
         User user = users.find(userId, tenantId);
         assertNotNull(user, "User should be saved");
@@ -128,5 +127,32 @@ public class CreateUserTest {
         List<Event> tenant2Events = ((EventStore) eventStore).getEvents(userId2, tenant2, accountId);
         assertEquals(1, tenant2Events.size(), "Only tenant2's event should be retrieved");
         assertEquals("tenant2@test.com", ((UserCreated) tenant2Events.get(0)).email().value());
+    }
+
+    @ParameterizedTest
+    @MethodSource("eventStores")
+    void shouldDeleteUserAndPublishEvent(EventSubscriber eventStore) {
+        var eventBus = new InMemoryEventBus();
+        eventBus.subscribe(eventStore);
+        var users = new InMemoryUsers();
+        var userEvents = new InMemoryUserEvents(eventBus);
+
+        var createUser = new CreateUser(users, userEvents);
+        var deleteUser = new DeleteUser(users, userEvents);
+        var tenantId = new TenantId();
+        var accountId = new AccountId();
+        var userId = new UserId();
+        var email = new Email("delete@test.com");
+
+        createUser.execute(userId, tenantId, accountId, email, BasicRole.TENANT_ADMIN);
+        deleteUser.execute(userId, tenantId, accountId, BasicRole.TENANT_ADMIN);
+        eventBus.shutdown();
+
+        User user = users.find(userId, tenantId);
+        assertTrue(user.isDeleted(), "User should be marked as deleted");
+        List<Event> storedEvents = ((EventStore) eventStore).getEvents(userId, tenantId, accountId);
+        assertEquals(2, storedEvents.size(), "Two events (create and delete) should be stored");
+        assertInstanceOf(UserCreated.class, storedEvents.get(0), "First event should be UserCreated");
+        assertInstanceOf(UserDeleted.class, storedEvents.get(1), "Second event should be UserDeleted");
     }
 }
