@@ -1,8 +1,13 @@
 package com.ses.zest.common;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.UUID;
 
-public abstract class EntityId<T> {
+
+public abstract class EntityId<T> implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final UUID value;
 
     protected EntityId() {
