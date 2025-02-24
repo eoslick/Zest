@@ -17,30 +17,29 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
  class CreateUserTest {
-    @Test
-    void shouldCreateUserAndPublishEvent() {
-        var encryption = new AesEncryption();
-        var keyManager = new InMemoryKeyManager(encryption);
-        var eventStore = new InMemoryEventStore(encryption, keyManager);
-        var eventBus = new InMemoryEventBus();
-        eventBus.subscribe(eventStore); // Subscribe store to bus
-        var users = new InMemoryUsers();
-        var userEvents = new InMemoryUserEvents(eventBus);
+     @Test
+     void shouldCreateUserAndPublishEvent() {
+         var encryption = new AesEncryption();
+         var keyManager = new InMemoryKeyManager(encryption);
+         var eventStore = new InMemoryEventStore(encryption, keyManager);
+         var eventBus = new InMemoryEventBus();
+         eventBus.subscribe(eventStore);
+         var users = new InMemoryUsers();
+         var userEvents = new InMemoryUserEvents(eventBus);
 
-        var createUser = new CreateUser(users, userEvents);
-        var tenantId = new TenantId();
-        var accountId = new AccountId();
-        var userId = new UserId();
-        var email = new Email("test@example.com");
-        var role = BasicRole.TENANT_ADMIN;
+         var createUser = new CreateUser(users, userEvents);
+         var tenantId = new TenantId();
+         var accountId = new AccountId();
+         var userId = new UserId();
+         var email = new Email("test@example.com");
+         var role = BasicRole.TENANT_ADMIN;
 
-        eventStore.setCurrentTenantId(tenantId); // Temporary hack
-        createUser.execute(userId, tenantId, accountId, email, role);
+         createUser.execute(userId, tenantId, accountId, email, role);
 
-        User user = users.find(userId, tenantId);
-        assertNotNull(user, "User should be saved");
-        List<Event> storedEvents = eventStore.getEvents(userId, tenantId, accountId);
-        assertEquals(1, storedEvents.size(), "One event should be stored");
-        assertEquals(email, ((UserCreated) storedEvents.get(0)).email(), "Event should contain email");
-    }
+         User user = users.find(userId, tenantId);
+         assertNotNull(user, "User should be saved");
+         List<Event> storedEvents = eventStore.getEvents(userId, tenantId, accountId);
+         assertEquals(1, storedEvents.size(), "One event should be stored");
+         assertEquals(email, ((UserCreated) storedEvents.get(0)).email(), "Event should contain email");
+     }
 }

@@ -1,8 +1,12 @@
 package com.ses.zest.common;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.Instant;
 
-public abstract class Event {
+public abstract class Event implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
     private final EntityId<?> entityId;
     private final TenantId tenantId;
     private final AccountId accountId;
@@ -17,6 +21,6 @@ public abstract class Event {
 
     public EntityId<?> entityId() { return entityId; }
     public TenantId tenantId() { return tenantId; }
-    public AccountId userId() { return accountId; }
+    public AccountId userId() { return accountId; } // Rename if needed
     public Instant timestamp() { return timestamp; }
 }

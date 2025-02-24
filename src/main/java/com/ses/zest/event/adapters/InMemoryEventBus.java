@@ -12,7 +12,7 @@ public final class InMemoryEventBus implements EventBus {
 
     @Override
     public void publish(Event event) {
-        executor.submit(() -> subscribers.forEach(sub -> sub.handle(event)));
+        subscribers.forEach(sub -> sub.handle(event)); // Synchronous
     }
 
     @Override
