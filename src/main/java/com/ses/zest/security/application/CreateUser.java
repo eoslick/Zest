@@ -1,4 +1,4 @@
-package com.ses.zest.user.application;
+package com.ses.zest.security.application;
 
 import com.ses.zest.user.domain.*;
 import com.ses.zest.user.ports.*;

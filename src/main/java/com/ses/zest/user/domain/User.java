@@ -37,6 +37,7 @@ public final class User {
 
     public UserId id() { return id; }
     public boolean isDeleted() { return deleted; }
+    public Email email() { return email; } // Added getter
 
     public List<Event> uncommittedEvents() {
         List<Event> events = List.copyOf(uncommittedEvents);

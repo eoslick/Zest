@@ -1,6 +1,7 @@
 package com.ses.zest.user;
 
 import com.ses.zest.event.ports.EventStore;
+import com.ses.zest.security.adapters.InMemoryAuthenticationRepository;
 import com.ses.zest.user.application.*;
 import com.ses.zest.user.domain.*;
 import com.ses.zest.user.adapters.*;
@@ -56,15 +57,16 @@ public class UserTest {
         eventBus.subscribe(eventStore);
         var users = new InMemoryUsers();
         var userEvents = new InMemoryUserEvents(eventBus);
+        var authRepo = new InMemoryAuthenticationRepository();
+        var createUser = new CreateUser(users, userEvents, authRepo);
 
-        var createUser = new CreateUser(users, userEvents);
         var tenantId = new TenantId();
         var accountId = new AccountId();
         var userId = new UserId();
         var email = new Email("test@example.com");
-        var role = BasicRole.TENANT_ADMIN;
+        var password = "dummyPass123"; // Added
 
-        createUser.execute(userId, tenantId, accountId, email, role);
+        createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
         eventBus.shutdown();
 
         User user = users.find(userId, tenantId);
@@ -81,15 +83,17 @@ public class UserTest {
         eventBus.subscribe(eventStore);
         var users = new InMemoryUsers();
         var userEvents = new InMemoryUserEvents(eventBus);
+        var authRepo = new InMemoryAuthenticationRepository();
+        var createUser = new CreateUser(users, userEvents, authRepo);
 
-        var createUser = new CreateUser(users, userEvents);
         var tenantId = new TenantId();
         var accountId = new AccountId();
         var wrongAccountId = new AccountId();
         var userId = new UserId();
         var email = new Email("encrypt@test.com");
+        var password = "dummyPass123"; // Added
 
-        createUser.execute(userId, tenantId, accountId, email, BasicRole.TENANT_ADMIN);
+        createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
         eventBus.shutdown();
 
         List<Event> correctEvents = ((EventStore) eventStore).getEvents(userId, tenantId, accountId);
@@ -108,16 +112,18 @@ public class UserTest {
         eventBus.subscribe(eventStore);
         var users = new InMemoryUsers();
         var userEvents = new InMemoryUserEvents(eventBus);
+        var authRepo = new InMemoryAuthenticationRepository();
+        var createUser = new CreateUser(users, userEvents, authRepo);
 
-        var createUser = new CreateUser(users, userEvents);
         var tenant1 = new TenantId();
         var tenant2 = new TenantId();
         var accountId = new AccountId();
         var userId1 = new UserId();
         var userId2 = new UserId();
+        var password = "dummyPass123"; // Added
 
-        createUser.execute(userId1, tenant1, accountId, new Email("tenant1@test.com"), BasicRole.TENANT_ADMIN);
-        createUser.execute(userId2, tenant2, accountId, new Email("tenant2@test.com"), BasicRole.TENANT_ADMIN);
+        createUser.execute(userId1, tenant1, accountId, new Email("tenant1@test.com"), password, BasicRole.TENANT_ADMIN);
+        createUser.execute(userId2, tenant2, accountId, new Email("tenant2@test.com"), password, BasicRole.TENANT_ADMIN);
         eventBus.shutdown();
 
         List<Event> tenant1Events = ((EventStore) eventStore).getEvents(userId1, tenant1, accountId);
@@ -136,15 +142,17 @@ public class UserTest {
         eventBus.subscribe(eventStore);
         var users = new InMemoryUsers();
         var userEvents = new InMemoryUserEvents(eventBus);
-
-        var createUser = new CreateUser(users, userEvents);
+        var authRepo = new InMemoryAuthenticationRepository();
+        var createUser = new CreateUser(users, userEvents, authRepo);
         var deleteUser = new DeleteUser(users, userEvents);
+
         var tenantId = new TenantId();
         var accountId = new AccountId();
         var userId = new UserId();
         var email = new Email("delete@test.com");
+        var password = "dummyPass123"; // Added
 
-        createUser.execute(userId, tenantId, accountId, email, BasicRole.TENANT_ADMIN);
+        createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
         deleteUser.execute(userId, tenantId, accountId, BasicRole.TENANT_ADMIN);
         eventBus.shutdown();
 
