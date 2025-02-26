@@ -1,3 +1,4 @@
+// src/main/java/com/ses/zest/user/application/CreateUser.java
 package com.ses.zest.user.application;
 
 import com.ses.zest.user.domain.*;
@@ -23,7 +24,7 @@ public final class CreateUser {
         var user = new User(id, tenantId, accountId);
         user.create(email, role);
         String hashedPassword = PasswordHasher.hashPassword(password);
-        authRepo.storeAuthenticationData(id, tenantId, new Credentials(hashedPassword, null));
+        authRepo.storeAuthenticationData(id, tenantId, new Credentials(hashedPassword, null, null));
         users.save(user, tenantId);
         user.uncommittedEvents().forEach(userEvents::publish);
     }

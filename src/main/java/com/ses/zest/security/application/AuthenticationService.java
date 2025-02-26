@@ -1,11 +1,9 @@
+// src/main/java/com/ses/zest/security/application/AuthenticationService.java
 package com.ses.zest.security.application;
 
 import com.ses.zest.common.TenantId;
+import com.ses.zest.security.domain.*;
 import com.ses.zest.user.domain.UserId;
-import com.ses.zest.security.domain.AuthenticationResult;
-import com.ses.zest.security.domain.Credentials;
-import com.ses.zest.security.domain.PasswordHasher;
-import com.ses.zest.security.domain.TOTPVerifier;
 import com.ses.zest.security.ports.AuthenticationRepository;
 import com.ses.zest.user.domain.User;
 import com.ses.zest.user.ports.Users;
@@ -47,5 +45,22 @@ public final class AuthenticationService {
         } else {
             return new AuthenticationResult.Failure("Invalid TOTP code");
         }
+    }
+
+    public AuthenticationResult authenticatePassKey(UserId userId, TenantId tenantId, String signedChallenge) {
+        Credentials data = authRepo.getAuthenticationData(userId, tenantId);
+        if (data == null || data.passKeyPublicKey() == null) {
+            return new AuthenticationResult.Failure("PassKey not enabled");
+        }
+        if (PassKeyVerifier.verify(data.passKeyPublicKey(), signedChallenge)) {
+            User user = users.find(userId, tenantId);
+            return new AuthenticationResult.Success(user);
+        } else {
+            return new AuthenticationResult.Failure("Invalid PassKey signature");
+        }
+    }
+
+    public String generatePassKeyChallenge() {
+        return PassKeyVerifier.generateChallenge();
     }
 }

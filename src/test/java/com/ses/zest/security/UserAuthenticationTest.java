@@ -6,6 +6,7 @@ import com.ses.zest.security.adapters.BasicRole;
 import com.ses.zest.security.adapters.InMemoryAuthenticationRepository;
 import com.ses.zest.security.application.AuthenticationService;
 import com.ses.zest.security.application.EnableMFA;
+import com.ses.zest.security.application.EnablePassKey;
 import com.ses.zest.security.domain.AuthenticationResult;
 import com.ses.zest.security.domain.PasswordHasher;
 import com.ses.zest.security.domain.TOTPVerifier;
@@ -62,24 +63,53 @@ public class UserAuthenticationTest {
         var password = "securePass123";
         createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
 
-        // Enable MFA
         String totpSecret = enableMFA.execute(userId, tenantId);
-
-        // Password step
         var passwordResult = authService.authenticatePassword(userId, tenantId, password);
         assertInstanceOf(AuthenticationResult.MFARequired.class, passwordResult);
         assertEquals("totp", ((AuthenticationResult.MFARequired) passwordResult).method());
 
-        // TOTP step (generate current code)
-        String totpCode = TOTPVerifier.generateCode(totpSecret); // Updated to use public method
+        String totpCode = TOTPVerifier.generateCode(totpSecret);
         var totpResult = authService.authenticateTOTP(userId, tenantId, totpCode);
         assertInstanceOf(AuthenticationResult.Success.class, totpResult);
         User user = ((AuthenticationResult.Success) totpResult).user();
         assertEquals(email, user.email());
 
-        // Wrong TOTP code
         var wrongTotpResult = authService.authenticateTOTP(userId, tenantId, "000000");
         assertInstanceOf(AuthenticationResult.Failure.class, wrongTotpResult);
         assertEquals("Invalid TOTP code", ((AuthenticationResult.Failure) wrongTotpResult).reason());
+    }
+
+    @Test
+    void shouldAuthenticateUserWithPassKey() {
+        var authRepo = new InMemoryAuthenticationRepository();
+        var users = new InMemoryUsers();
+        var userEvents = new InMemoryUserEvents(new InMemoryEventBus());
+        var createUser = new CreateUser(users, userEvents, authRepo);
+        var enablePassKey = new EnablePassKey(authRepo);
+        var authService = new AuthenticationService(authRepo, users);
+
+        var userId = new UserId();
+        var tenantId = new TenantId();
+        var accountId = new AccountId();
+        var email = new Email("passkey@example.com");
+        var password = "securePass123";
+        createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
+
+        // Enable PassKey (simulated public key)
+        String publicKey = "fake-public-key";
+        enablePassKey.execute(userId, tenantId, publicKey);
+
+        // PassKey step
+        String challenge = authService.generatePassKeyChallenge();
+        String signedChallenge = "signed-" + publicKey; // Simulated signature
+        var passKeyResult = authService.authenticatePassKey(userId, tenantId, signedChallenge);
+        assertInstanceOf(AuthenticationResult.Success.class, passKeyResult);
+        User user = ((AuthenticationResult.Success) passKeyResult).user();
+        assertEquals(email, user.email());
+
+        // Wrong signature
+        var wrongPassKeyResult = authService.authenticatePassKey(userId, tenantId, "wrong-signature");
+        assertInstanceOf(AuthenticationResult.Failure.class, wrongPassKeyResult);
+        assertEquals("Invalid PassKey signature", ((AuthenticationResult.Failure) wrongPassKeyResult).reason());
     }
 }

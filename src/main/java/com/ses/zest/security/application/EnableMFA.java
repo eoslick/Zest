@@ -1,3 +1,4 @@
+// src/main/java/com/ses/zest/security/application/EnableMFA.java
 package com.ses.zest.security.application;
 
 import com.ses.zest.common.TenantId;
@@ -19,7 +20,7 @@ public final class EnableMFA {
             throw new IllegalStateException("User must have a password to enable MFA");
         }
         String totpSecret = TOTPVerifier.generateSecret();
-        authRepo.storeAuthenticationData(userId, tenantId, new Credentials(current.hashedPassword(), totpSecret));
+        authRepo.storeAuthenticationData(userId, tenantId, new Credentials(current.hashedPassword(), totpSecret, current.passKeyPublicKey()));
         return totpSecret; // Return secret for user to configure (e.g., QR code)
     }
 }
