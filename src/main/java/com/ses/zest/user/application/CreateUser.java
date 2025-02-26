@@ -24,8 +24,7 @@ public final class CreateUser {
         var user = new User(id, tenantId, accountId);
         user.create(email, role);
         String hashedPassword = PasswordHasher.hashPassword(password);
-        authRepo.storeAuthenticationData(id, tenantId, new Credentials(hashedPassword, null, null));
-        users.save(user, tenantId);
+        authRepo.storeAuthenticationData(id, tenantId, new Credentials(hashedPassword, null, null, null));        users.save(user, tenantId);
         user.uncommittedEvents().forEach(userEvents::publish);
     }
 }

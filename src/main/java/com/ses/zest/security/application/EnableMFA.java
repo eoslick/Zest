@@ -20,7 +20,11 @@ public final class EnableMFA {
             throw new IllegalStateException("User must have a password to enable MFA");
         }
         String totpSecret = TOTPVerifier.generateSecret();
-        authRepo.storeAuthenticationData(userId, tenantId, new Credentials(current.hashedPassword(), totpSecret, current.passKeyPublicKey()));
-        return totpSecret; // Return secret for user to configure (e.g., QR code)
+        authRepo.storeAuthenticationData(userId, tenantId, new Credentials(
+                current.hashedPassword(),      // Keep the existing hashed password
+                totpSecret,                    // The new TOTP secret for MFA
+                current.passKeyPublicKey(),    // Keep the existing passkey public key
+                current.socialProviderId()     // Keep the existing social provider ID
+        ));        return totpSecret; // Return secret for user to configure (e.g., QR code)
     }
 }

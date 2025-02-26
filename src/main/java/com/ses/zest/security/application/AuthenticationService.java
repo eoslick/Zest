@@ -63,4 +63,21 @@ public final class AuthenticationService {
     public String generatePassKeyChallenge() {
         return PassKeyVerifier.generateChallenge();
     }
+
+    public AuthenticationResult authenticateSocial(UserId userId, TenantId tenantId, String provider, String idToken) {
+        Credentials data = authRepo.getAuthenticationData(userId, tenantId);
+        if (data == null || data.socialProviderId() == null) {
+            return new AuthenticationResult.Failure("Social login not enabled");
+        }
+        boolean validToken = switch (provider) {
+            case "google" -> SocialLoginVerifier.verifyGoogleToken(idToken);
+            default -> false; // Add more providers as needed
+        };
+        if (validToken && data.socialProviderId().equals(SocialLoginVerifier.extractUserId(idToken))) {
+            User user = users.find(userId, tenantId);
+            return new AuthenticationResult.Success(user);
+        } else {
+            return new AuthenticationResult.Failure("Invalid social login token");
+        }
+    }
 }

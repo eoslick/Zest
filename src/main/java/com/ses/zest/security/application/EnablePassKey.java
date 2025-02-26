@@ -1,3 +1,4 @@
+// src/main/java/com/ses/zest/security/application/EnablePassKey.java
 package com.ses.zest.security.application;
 
 import com.ses.zest.common.TenantId;
@@ -15,9 +16,10 @@ public final class EnablePassKey {
     public void execute(UserId userId, TenantId tenantId, String publicKey) {
         Credentials current = authRepo.getAuthenticationData(userId, tenantId);
         if (current == null) {
-            authRepo.storeAuthenticationData(userId, tenantId, new Credentials(null, null, publicKey));
+            authRepo.storeAuthenticationData(userId, tenantId, new Credentials(null, null, publicKey, null));
         } else {
-            authRepo.storeAuthenticationData(userId, tenantId, new Credentials(current.hashedPassword(), current.totpSecret(), publicKey));
+            authRepo.storeAuthenticationData(userId, tenantId, new Credentials(
+                    current.hashedPassword(), current.totpSecret(), publicKey, current.socialProviderId()));
         }
     }
 }

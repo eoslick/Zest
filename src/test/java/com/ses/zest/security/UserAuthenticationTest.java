@@ -7,6 +7,7 @@ import com.ses.zest.security.adapters.InMemoryAuthenticationRepository;
 import com.ses.zest.security.application.AuthenticationService;
 import com.ses.zest.security.application.EnableMFA;
 import com.ses.zest.security.application.EnablePassKey;
+import com.ses.zest.security.application.EnableSocialLogin;
 import com.ses.zest.security.domain.AuthenticationResult;
 import com.ses.zest.security.domain.PasswordHasher;
 import com.ses.zest.security.domain.TOTPVerifier;
@@ -95,21 +96,50 @@ public class UserAuthenticationTest {
         var password = "securePass123";
         createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
 
-        // Enable PassKey (simulated public key)
         String publicKey = "fake-public-key";
         enablePassKey.execute(userId, tenantId, publicKey);
 
-        // PassKey step
         String challenge = authService.generatePassKeyChallenge();
-        String signedChallenge = "signed-" + publicKey; // Simulated signature
+        String signedChallenge = "signed-" + publicKey;
         var passKeyResult = authService.authenticatePassKey(userId, tenantId, signedChallenge);
         assertInstanceOf(AuthenticationResult.Success.class, passKeyResult);
         User user = ((AuthenticationResult.Success) passKeyResult).user();
         assertEquals(email, user.email());
 
-        // Wrong signature
         var wrongPassKeyResult = authService.authenticatePassKey(userId, tenantId, "wrong-signature");
         assertInstanceOf(AuthenticationResult.Failure.class, wrongPassKeyResult);
         assertEquals("Invalid PassKey signature", ((AuthenticationResult.Failure) wrongPassKeyResult).reason());
+    }
+
+    @Test
+    void shouldAuthenticateUserWithSocialLogin() {
+        var authRepo = new InMemoryAuthenticationRepository();
+        var users = new InMemoryUsers();
+        var userEvents = new InMemoryUserEvents(new InMemoryEventBus());
+        var createUser = new CreateUser(users, userEvents, authRepo);
+        var enableSocialLogin = new EnableSocialLogin(authRepo);
+        var authService = new AuthenticationService(authRepo, users);
+
+        var userId = new UserId();
+        var tenantId = new TenantId();
+        var accountId = new AccountId();
+        var email = new Email("social@example.com");
+        var password = "securePass123";
+        createUser.execute(userId, tenantId, accountId, email, password, BasicRole.TENANT_ADMIN);
+
+        // Enable social login (simulated Google token)
+        String idToken = "fake-google-token";
+        enableSocialLogin.execute(userId, tenantId, "google", idToken);
+
+        // Social login step
+        var socialResult = authService.authenticateSocial(userId, tenantId, "google", idToken);
+        assertInstanceOf(AuthenticationResult.Success.class, socialResult);
+        User user = ((AuthenticationResult.Success) socialResult).user();
+        assertEquals(email, user.email());
+
+        // Wrong token
+        var wrongSocialResult = authService.authenticateSocial(userId, tenantId, "google", "wrong-token");
+        assertInstanceOf(AuthenticationResult.Failure.class, wrongSocialResult);
+        assertEquals("Invalid social login token", ((AuthenticationResult.Failure) wrongSocialResult).reason());
     }
 }
